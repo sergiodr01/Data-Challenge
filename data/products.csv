@@ -1,0 +1,42 @@
+product_id,product_name,category,subcategory,launch_date,status,num_ingredients,primary_ingredient,region_developed
+P001,Citrus Burst,Fragrance,Fresh,2023-01-15,Active,12,Lemon Oil,EMEA
+P002,Vanilla Dream,Flavor,Sweet,2023-02-20,Active,8,Vanilla Extract,North America
+P003,Ocean Breeze,Fragrance,Aquatic,2022-11-10,Active,15,Sea Salt Accord,APAC
+P004,Strawberry Delight,Flavor,Fruity,2023-03-01,Active,10,Strawberry Concentrate,North America
+P005,Amber Nights,Fragrance,Oriental,2022-08-15,Active,18,Amber,EMEA
+P006,Chocolate Heaven,Flavor,Sweet,2023-04-12,Active,7,Cocoa Extract,LATAM
+P007,Green Tea Essence,Flavor,Herbal,2022-12-05,Active,6,Green Tea Extract,APAC
+P008,Rose Garden,Fragrance,Floral,2023-01-20,Active,14,Rose Oil,EMEA
+P009,Mango Tango,Flavor,Fruity,2023-05-15,Active,9,Mango Puree,APAC
+P010,Sandalwood Mystic,Fragrance,Woody,2022-09-30,Active,16,Sandalwood Oil,APAC
+P002,Vanilla Dream,Flavor,Sweet,2023-02-20,Active,8,Vanilla Extract,North America
+P011,Coffee Roast,Flavor,Beverage,2023-06-01,active,11,Coffee Extract,LATAM
+P012,Lavender Fields,Fragrance,Floral,2022-10-15,Active,13,Lavender Oil,EMEA
+P013,Mint Coolness,Flavor,Fresh,2023-07-20,Active,5,Peppermint Oil,North America
+P014,Peach Nectar,Flavor,Fruity,2023-08-10,Active,8,Peach Concentrate,EMEA
+P015,Vetiver Earth,Fragrance,Woody,2022-07-25,Discontinued,17,Vetiver Oil,APAC
+P016,Caramel Indulgence,Flavor,Sweet,2023-09-05,Active,9,Caramel,LATAM
+P017,Jasmine Night,Fragrance,Floral,2023-01-30,Active,12,Jasmine Absolute,EMEA
+P018,Lemon Zest,Flavor,Citrus,2023-10-12,Active,6,Lemon Oil,North America
+P019,Musk Elegance,Fragrance,Oriental,,Active,14,White Musk,EMEA
+P020,Coconut Paradise,Flavor,Tropical,2023-11-20,Active,7,Coconut Extract,APAC
+P021,Pine Forest,Fragrance,Fresh,2022-06-15,Active,10,Pine Needle Oil,North America
+P022,Cherry Blossom,Flavor,Fruity,2023-12-01,Active,8,Cherry Extract,APAC
+P023,Tobacco Leather,Fragrance,Oriental,2022-05-10,Active,19,Tobacco Absolute,EMEA
+P024,Ginger Spice,Flavor,Spicy,2024-01-15,Active,NULL,Ginger Extract,APAC
+P025,Bergamot Fresh,Fragrance,Citrus,2024-02-20,Active,11,Bergamot Oil,EMEA
+P026,Blueberry Blast,Flavor,Fruity,2024-03-10,Active,9,Blueberry Concentrate,North America
+P027,Patchouli Deep,Fragrance,Woody,2024-04-05,Active,15,Patchouli Oil,APAC
+P028,Hazelnut Cream,Flavor,Nutty,2024-05-12,Active,10,Hazelnut Extract,EMEA
+P029,,Fragrance,Floral,2024-06-15,Active,13,Gardenia,LATAM
+P030,Apple Crisp,Flavor,Fruity,2024-07-20,Active,7,Apple Extract,North America
+P031,Cedar Wood,Fragrance,Woody,2023-03-15,Active,12,Cedarwood Oil,North America
+P032,Raspberry Ripple,Flavor,Fruity,2023-04-22,Active,8,Raspberry Concentrate,EMEA
+P033,Oriental Spice,Fragrance,Oriental,2023-05-30,Active,-5,Cinnamon,APAC
+P034,Butter Cream,Flavor,Sweet,2023-06-18,Active,6,Butter Extract,North America
+P035,Aqua Marine,Fragrance,Aquatic,2023-07-25,Active,16,Marine Accord,EMEA
+P036,Watermelon Wave,Flavor,Fruity,2023-08-30,Active,7,Watermelon,LATAM
+P037,Frankincense,Fragrance,Oriental,2023-09-14,Active,14,Frankincense Oil,EMEA
+P038,Pineapple Punch,Flavor,Tropical,2023-10-28,Active,9,Pineapple Extract,APAC
+P039,Lily White,Fragrance,Floral,2023-11-16,Active,11,Lily Extract,EMEA
+P040,Banana Cream,Flavor,Fruity,15-12-2023,Active,8,Banana Extract,LATAM

@@ -1,0 +1,43 @@
+ingredient_id,ingredient_name,cost_per_kg_usd,supplier,last_updated,category
+I001,Lemon Oil,45.50,CitrusSupply Co,2024-08-01,Essential Oil
+I002,Vanilla Extract,120.00,VanillaPro Ltd,2024-08-01,Extract
+I003,Sea Salt Accord,28.75,MarineScents Inc,2024-08-01,Synthetic
+I004,Strawberry Concentrate,55.00,FruitEssence,2024-08-01,Concentrate
+I005,Amber,85.00,OrientalOils,2024-08-01,Resin
+I006,Cocoa Extract,62.50,ChocoPro,2024-07-15,Extract
+I007,Green Tea Extract,48.00,TeaMasters,2024-08-01,Extract
+I008,Rose Oil,215.00,FloralSupreme,2024-08-01,Essential Oil
+I009,Mango Puree,42.00,TropicalFruits Co,2024-08-01,Puree
+I010,Sandalwood Oil,180.00,WoodyScents,2024-08-01,Essential Oil
+I011,Coffee Extract,52.00,BeanAroma,2024-08-01,Extract
+I012,Lavender Oil,68.00,HerbFields,2024-08-01,Essential Oil
+I013,Peppermint Oil,38.50,MintFresh,2024-08-01,Essential Oil
+I014,Peach Concentrate,51.00,StonefruitCo,2024-08-01,Concentrate
+I015,Vetiver Oil,95.00,EarthyEssence,2024-08-01,Essential Oil
+I016,Caramel,35.00,SweetSupply,2024-08-01,Synthetic
+I017,Jasmine Absolute,245.00,FloralSupreme,2024-08-01,Absolute
+I018,Lemon Oil,45.50,CitrusSupply Co,2024-08-01,Essential Oil
+I019,White Musk,72.00,MuskMasters,2024-07-20,Synthetic
+I020,Coconut Extract,44.00,TropicalFruits Co,2024-08-01,Extract
+I021,Pine Needle Oil,41.50,ForestScents,2024-08-01,Essential Oil
+I022,Cherry Extract,58.00,FruitEssence,2024-08-01,Extract
+I023,Tobacco Absolute,165.00,OrientalOils,2024-08-01,Absolute
+I024,Ginger Extract,47.00,SpiceWorld,2024-08-01,Extract
+I025,Bergamot Oil,78.00,CitrusSupply Co,2024-08-01,Essential Oil
+I026,Blueberry Concentrate,53.00,BerryBest Co,2024-08-01,Concentrate
+I027,Patchouli Oil,65.00,EarthyEssence,2024-08-01,Essential Oil
+I028,Hazelnut Extract,61.00,NuttyFlavors,2024-08-01,Extract
+I029,Gardenia,125.00,FloralSupreme,2024-08-01,Absolute
+I030,Apple Extract,39.50,FruitEssence,2024-08-01,Extract
+I031,Cedarwood Oil,56.00,WoodyScents,2024-08-01,Essential Oil
+I032,Raspberry Concentrate,54.50,BerryBest Co,2024-08-01,Concentrate
+I033,Cinnamon,43.00,SpiceWorld,2024-08-01,Spice Extract
+I034,Butter Extract,48.50,DairyFlavors,2024-08-01,Extract
+I035,Marine Accord,31.00,MarineScents Inc,2024-08-01,Synthetic
+I036,Watermelon,36.00,FruitEssence,2024-07-25,Concentrate
+I037,Frankincense Oil,98.00,OrientalOils,2024-08-01,Essential Oil
+I038,Pineapple Extract,46.00,TropicalFruits Co,2024-08-01,Extract
+I039,Lily Extract,135.00,FloralSupreme,2024-08-01,Extract
+I040,Banana Extract,40.00,TropicalFruits Co,2024-08-01,Extract
+I041,Orange Oil,42.00,CitrusSupply Co,2024-08-01,Essential Oil
+I042,Almond Extract,59.00,NuttyFlavors,2024-08-01,Extract
