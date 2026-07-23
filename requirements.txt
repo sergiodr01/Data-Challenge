@@ -3,3 +3,5 @@ numpy>=1.26
 PyYAML>=6.0
 pytest>=8.0
 matplotlib>=3.8
+seaborn>=0.13
+SQLAlchemy>=2.0
