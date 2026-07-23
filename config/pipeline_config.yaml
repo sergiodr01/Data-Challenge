@@ -1,0 +1,15 @@
+paths:
+  products_csv: data/products.csv
+  sales_csv: data/sales_transactions.csv
+  feedback_csv: data/customer_feedback.csv
+  ingredient_costs_csv: data/ingredient_costs.csv
+  database: symrise_data.db
+  output_dir: output
+
+logging:
+  level: INFO
+  log_file: output/pipeline.log
+
+quality_thresholds:
+  rating_min: 0
+  rating_max: 5
