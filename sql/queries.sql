@@ -1,0 +1,1 @@
+-- SQL queries answering the business questions from challengers/README.md.

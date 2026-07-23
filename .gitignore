@@ -22,3 +22,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Generated database and pipeline artifacts
+*.db
+output/cleaned_data/
+output/visualizations/
