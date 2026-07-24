@@ -62,6 +62,21 @@ def _check_referential_integrity(df: pd.DataFrame, fk_col: str, valid_ids: pd.Se
     return [f"{n} '{fk_col}' value(s) not found in products"] if n else []
 
 
+def _check_dates(df: pd.DataFrame, col: str) -> list[str]:
+    """
+    Flag values that don't parse as a date under mixed-format inference
+    (e.g. '7/15/2024' or '07-18-2024' mixed into a mostly-ISO 'YYYY-MM-DD'
+    column). Raw string columns, not yet parsed - this runs on extract_all()
+    output, before transform.py converts them to datetime64.
+    """
+    if col not in df.columns:
+        return []
+    parsed = pd.to_datetime(df[col], format='mixed', errors='coerce')
+    unparseable = df[col].notna() & parsed.isna()
+    n = int(unparseable.sum())
+    return [f"{n} unparseable date value(s) in '{col}'"] if n else []
+
+
 def validate_all(data: dict[str, pd.DataFrame], thresholds: dict[str, Any] | None = None) -> dict[str, list[str]]:
     """
     Run schema and quality checks on the raw datasets returned by extract_all().
@@ -89,12 +104,14 @@ def validate_all(data: dict[str, pd.DataFrame], thresholds: dict[str, Any] | Non
             _check_schema('products', products)
             + _check_nulls(products, ['product_name', 'category', 'num_ingredients'])
             + _check_duplicates(products, 'product_id')
+            + _check_dates(products, 'launch_date')
         ),
         'sales': (
             _check_schema('sales', sales)
             + _check_nulls(sales, ['customer_id', 'total_amount_usd'])
             + _check_duplicates(sales, 'transaction_id')
             + _check_referential_integrity(sales, 'product_id', products['product_id'])
+            + _check_dates(sales, 'transaction_date')
         ),
         'feedback': (
             _check_schema('feedback', feedback)
@@ -103,10 +120,12 @@ def validate_all(data: dict[str, pd.DataFrame], thresholds: dict[str, Any] | Non
             + _check_referential_integrity(feedback, 'product_id', products['product_id'])
             + _check_range(feedback, 'quality_rating', rating_min, rating_max)
             + _check_range(feedback, 'overall_satisfaction', rating_min, rating_max)
+            + _check_dates(feedback, 'feedback_date')
         ),
         'ingredients': (
             _check_schema('ingredients', ingredients)
             + _check_duplicates(ingredients, 'ingredient_id')
+            + _check_dates(ingredients, 'last_updated')
         ),
     }
 

@@ -87,7 +87,7 @@ def clean_products(df: pd.DataFrame) -> pd.DataFrame:
     df['status'] = df['status'].str.strip().str.capitalize()
     df['category'] = df['category'].str.strip()
     df['subcategory'] = df['subcategory'].str.strip()
-    df['launch_date'] = pd.to_datetime(df['launch_date'], errors='coerce')
+    df['launch_date'] = pd.to_datetime(df['launch_date'], format='mixed', errors='coerce')
 
     return df
 
@@ -113,7 +113,7 @@ def clean_sales(df: pd.DataFrame) -> pd.DataFrame:
         df.loc[missing_customer, 'customer_id'] = 'UNKNOWN'
         logger.warning(f"[sales] filled {missing_customer.sum()} missing customer_id with 'UNKNOWN'")
 
-    df['transaction_date'] = pd.to_datetime(df['transaction_date'], errors='coerce')
+    df['transaction_date'] = pd.to_datetime(df['transaction_date'], format='mixed', errors='coerce')
 
     return df
 
@@ -135,7 +135,7 @@ def clean_feedback(df: pd.DataFrame, rating_min: float = 0, rating_max: float = 
             logger.warning(f"[feedback] clipped {out_of_range.sum()} out-of-range value(s) in '{col}' to [{rating_min}, {rating_max}]")
 
     df['would_reorder'] = df['would_reorder'].str.strip().str.capitalize()
-    df['feedback_date'] = pd.to_datetime(df['feedback_date'], errors='coerce')
+    df['feedback_date'] = pd.to_datetime(df['feedback_date'], format='mixed', errors='coerce')
 
     return df
 
@@ -145,7 +145,7 @@ def clean_ingredients(df: pd.DataFrame) -> pd.DataFrame:
     df = _resolve_dimension_conflicts(df, 'ingredient_id', 'ingredients')
 
     df = df.copy()
-    df['last_updated'] = pd.to_datetime(df['last_updated'], errors='coerce')
+    df['last_updated'] = pd.to_datetime(df['last_updated'], format='mixed', errors='coerce')
 
     return df
 
