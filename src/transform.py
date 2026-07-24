@@ -89,6 +89,14 @@ def clean_products(df: pd.DataFrame) -> pd.DataFrame:
     df['subcategory'] = df['subcategory'].str.strip()
     df['launch_date'] = pd.to_datetime(df['launch_date'], format='mixed', errors='coerce')
 
+    negative_ingredients = df['num_ingredients'] < 0
+    if negative_ingredients.any():
+        df.loc[negative_ingredients, 'num_ingredients'] = float('nan')
+        logger.warning(
+            f"[products] {negative_ingredients.sum()} negative num_ingredients value(s) "
+            f"are not a plausible ingredient count; set to NaN rather than guessing the true value"
+        )
+
     return df
 
 
@@ -143,6 +151,13 @@ def clean_feedback(df: pd.DataFrame, rating_min: float = 0, rating_max: float = 
 def clean_ingredients(df: pd.DataFrame) -> pd.DataFrame:
     df = _drop_exact_duplicates(df, 'ingredients')
     df = _resolve_dimension_conflicts(df, 'ingredient_id', 'ingredients')
+    # products.primary_ingredient links to ingredients by NAME, not
+    # ingredient_id (there's no ingredient_id column on products), so a
+    # duplicate ingredient_name under two different ingredient_ids (e.g.
+    # 'Lemon Oil' as both I001 and I018) is a real join hazard even though
+    # ingredient_id itself stayed unique: it silently fans out any
+    # name-based cost join into duplicate rows, double-counting revenue.
+    df = _resolve_dimension_conflicts(df, 'ingredient_name', 'ingredients')
 
     df = df.copy()
     df['last_updated'] = pd.to_datetime(df['last_updated'], format='mixed', errors='coerce')

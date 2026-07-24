@@ -46,12 +46,15 @@ def _check_duplicates(df: pd.DataFrame, id_col: str) -> list[str]:
     return [f"{n} duplicate '{id_col}' value(s)"] if n else []
 
 
-def _check_range(df: pd.DataFrame, col: str, min_val: float, max_val: float) -> list[str]:
+def _check_range(df: pd.DataFrame, col: str, min_val: float, max_val: float | None = None) -> list[str]:
     if col not in df.columns:
         return []
-    out_of_range = df[col].notna() & ((df[col] < min_val) | (df[col] > max_val))
+    below = df[col] < min_val
+    above = (df[col] > max_val) if max_val is not None else False
+    out_of_range = df[col].notna() & (below | above)
     n = int(out_of_range.sum())
-    return [f"{n} value(s) in '{col}' outside [{min_val}, {max_val}]"] if n else []
+    bound = f"[{min_val}, {max_val}]" if max_val is not None else f">= {min_val}"
+    return [f"{n} value(s) in '{col}' outside {bound}"] if n else []
 
 
 def _check_referential_integrity(df: pd.DataFrame, fk_col: str, valid_ids: pd.Series) -> list[str]:
@@ -105,6 +108,7 @@ def validate_all(data: dict[str, pd.DataFrame], thresholds: dict[str, Any] | Non
             + _check_nulls(products, ['product_name', 'category', 'num_ingredients'])
             + _check_duplicates(products, 'product_id')
             + _check_dates(products, 'launch_date')
+            + _check_range(products, 'num_ingredients', min_val=0)
         ),
         'sales': (
             _check_schema('sales', sales)
@@ -125,6 +129,10 @@ def validate_all(data: dict[str, pd.DataFrame], thresholds: dict[str, Any] | Non
         'ingredients': (
             _check_schema('ingredients', ingredients)
             + _check_duplicates(ingredients, 'ingredient_id')
+            # ingredient_name is the de facto join key from products.primary_ingredient
+            # (there's no ingredient_id on products), so a duplicate name under two
+            # different ingredient_ids is a real join hazard even with unique IDs.
+            + _check_duplicates(ingredients, 'ingredient_name')
             + _check_dates(ingredients, 'last_updated')
         ),
     }
