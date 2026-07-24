@@ -1,11 +1,11 @@
 """
-ETL pipeline orchestrator: runs extract -> validate -> transform -> validate.
+ETL pipeline orchestrator: runs extract -> validate -> transform -> validate
+-> load end-to-end, driven entirely by config/pipeline_config.yaml.
 
 The second validate call is a quality gate: whatever issues survive
 cleaning are the ones we deliberately chose not to (or can't) fix, and
 they get logged and returned here instead of silently flowing into the
-database untracked. load.py (persisting cleaned_data to SQLite) plugs in
-after this stage.
+database untracked.
 """
 
 import logging
@@ -14,19 +14,43 @@ from typing import Any
 
 import yaml
 
-from . import extract, transform, validate
+from . import extract, load, transform, validate
 
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
+def _resolve(path: str) -> Path:
+    resolved = Path(path)
+    return resolved if resolved.is_absolute() else PROJECT_ROOT / resolved
+
+
 def _load_config(config_path: str) -> dict[str, Any]:
-    config_file = Path(config_path)
-    if not config_file.is_absolute():
-        config_file = PROJECT_ROOT / config_file
+    config_file = _resolve(config_path)
     with open(config_file, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
+
+
+def configure_logging(config: dict[str, Any]) -> None:
+    """Set up logging from config['logging'] (level + log_file) instead of
+    hardcoding them, with both a console and a file handler."""
+    log_config = config.get('logging', {})
+    level = getattr(logging, str(log_config.get('level', 'INFO')).upper(), logging.INFO)
+    log_file = log_config.get('log_file')
+
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    if log_file:
+        log_path = _resolve(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        handlers.append(logging.FileHandler(log_path, mode='a', encoding='utf-8'))
+
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s %(levelname)s:%(name)s:%(message)s',
+        handlers=handlers,
+        force=True,
+    )
 
 
 def run_ingestion(config_path: str = "config/pipeline_config.yaml") -> tuple[dict[str, Any], dict[str, list[str]]]:
@@ -41,17 +65,17 @@ def run_ingestion(config_path: str = "config/pipeline_config.yaml") -> tuple[dic
     config = _load_config(config_path)
     thresholds = config.get('quality_thresholds', {})
 
-    logger.info("Stage 1/4: extract")
+    logger.info("Stage 1/5: extract")
     raw_data = extract.extract_all(config_path)
 
-    logger.info("Stage 2/4: validate (pre-transform)")
+    logger.info("Stage 2/5: validate (pre-transform)")
     pre_report = validate.validate_all(raw_data, thresholds=thresholds)
     pre_total = sum(len(issues) for issues in pre_report.values())
 
-    logger.info("Stage 3/4: transform")
+    logger.info("Stage 3/5: transform")
     cleaned_data = transform.transform_all(raw_data, thresholds=thresholds)
 
-    logger.info("Stage 4/4: validate (post-transform gate)")
+    logger.info("Stage 4/5: validate (post-transform gate)")
     post_report = validate.validate_all(cleaned_data, thresholds=thresholds)
     post_total = sum(len(issues) for issues in post_report.values())
 
@@ -65,6 +89,28 @@ def run_ingestion(config_path: str = "config/pipeline_config.yaml") -> tuple[dic
     return cleaned_data, post_report
 
 
+def run_pipeline(config_path: str = "config/pipeline_config.yaml") -> dict[str, list[str]]:
+    """
+    Run the full pipeline end-to-end: extract -> validate -> transform ->
+    validate -> load, persisting the cleaned data to the SQLite database
+    declared in config['paths']['database'].
+
+    Returns:
+        The post-transform quality report (see run_ingestion()).
+    """
+    config = _load_config(config_path)
+
+    cleaned_data, post_report = run_ingestion(config_path)
+
+    logger.info("Stage 5/5: load")
+    database_path = config['paths']['database']
+    db_path = load.load_all(cleaned_data, database_path=database_path)
+    logger.info(f"Pipeline complete. Database written to {db_path}")
+
+    return post_report
+
+
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s:%(message)s')
-    run_ingestion()
+    _bootstrap_config = _load_config("config/pipeline_config.yaml")
+    configure_logging(_bootstrap_config)
+    run_pipeline()

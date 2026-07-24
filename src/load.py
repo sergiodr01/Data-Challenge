@@ -100,13 +100,17 @@ def load_all(cleaned_data: dict[str, pd.DataFrame], database_path: str = "symris
         The resolved path to the database file.
     """
     db_path = _resolve(database_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(f"sqlite:///{db_path}")
 
-    metadata.drop_all(engine)
-    metadata.create_all(engine)
-    logger.info(f"Schema (re)created at {db_path}")
-
+    # Schema (re)creation and every table load run inside one transaction,
+    # so a failure partway through rolls back the whole database instead of
+    # leaving it schema-only or half-loaded.
     with engine.begin() as conn:
+        metadata.drop_all(conn)
+        metadata.create_all(conn)
+        logger.info(f"Schema (re)created at {db_path}")
+
         for name in LOAD_ORDER:
             df = cleaned_data[name]
             df.to_sql(name, conn, if_exists='append', index=False)

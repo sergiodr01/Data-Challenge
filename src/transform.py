@@ -26,11 +26,14 @@ def _drop_exact_duplicates(df: pd.DataFrame, name: str) -> pd.DataFrame:
     return df
 
 
-def _dedupe_ids(df: pd.DataFrame, id_col: str, name: str) -> pd.DataFrame:
+def _dedupe_fact_ids(df: pd.DataFrame, id_col: str, name: str) -> pd.DataFrame:
     """
-    Disambiguate rows that share an ID but are NOT identical (an ID
-    collision, not a true duplicate) by suffixing later occurrences.
-    Dropping them would silently lose real records (e.g. real revenue).
+    Disambiguate fact rows (sales, feedback) that share an ID but are NOT
+    identical (an ID collision, not a true duplicate) by suffixing later
+    occurrences. Safe here because nothing else references a transaction_id
+    or feedback_id, so renaming one can't silently break another table's
+    foreign key. Dropping instead of renaming would lose real records
+    (e.g. real revenue).
     """
     df = df.copy()
     seen: dict[str, int] = {}
@@ -50,9 +53,30 @@ def _dedupe_ids(df: pd.DataFrame, id_col: str, name: str) -> pd.DataFrame:
     return df
 
 
+def _resolve_dimension_conflicts(df: pd.DataFrame, id_col: str, name: str) -> pd.DataFrame:
+    """
+    Deduplicate dimension rows (products, ingredients) that share an ID but
+    are NOT identical. Unlike fact IDs, a dimension ID is a foreign key
+    target for other tables (sales.product_id, feedback.product_id), so it
+    must never be renamed - that would silently orphan every row that
+    already points at it. Instead, keep the first occurrence deterministically
+    and log the conflicting row(s) as dropped, so the loss is visible instead
+    of silent.
+    """
+    conflict_mask = df[id_col].duplicated(keep=False)
+    if conflict_mask.any():
+        conflicting_ids = df.loc[conflict_mask, id_col].unique().tolist()
+        logger.warning(
+            f"[{name}] {len(conflicting_ids)} '{id_col}' value(s) have conflicting "
+            f"non-identical rows ({conflicting_ids}); kept the first occurrence of each "
+            f"and dropped the rest, since {id_col} is referenced by other tables"
+        )
+    return df.drop_duplicates(subset=[id_col], keep='first').reset_index(drop=True)
+
+
 def clean_products(df: pd.DataFrame) -> pd.DataFrame:
     df = _drop_exact_duplicates(df, 'products')
-    df = _dedupe_ids(df, 'product_id', 'products')
+    df = _resolve_dimension_conflicts(df, 'product_id', 'products')
 
     df = df.copy()
     missing_name = df['product_name'].isna()
@@ -70,7 +94,7 @@ def clean_products(df: pd.DataFrame) -> pd.DataFrame:
 
 def clean_sales(df: pd.DataFrame) -> pd.DataFrame:
     df = _drop_exact_duplicates(df, 'sales')
-    df = _dedupe_ids(df, 'transaction_id', 'sales')
+    df = _dedupe_fact_ids(df, 'transaction_id', 'sales')
 
     df = df.copy()
     recoverable = (
@@ -96,7 +120,7 @@ def clean_sales(df: pd.DataFrame) -> pd.DataFrame:
 
 def clean_feedback(df: pd.DataFrame, rating_min: float = 0, rating_max: float = 5) -> pd.DataFrame:
     df = _drop_exact_duplicates(df, 'feedback')
-    df = _dedupe_ids(df, 'feedback_id', 'feedback')
+    df = _dedupe_fact_ids(df, 'feedback_id', 'feedback')
 
     df = df.copy()
     missing_customer = df['customer_id'].isna()
@@ -118,7 +142,7 @@ def clean_feedback(df: pd.DataFrame, rating_min: float = 0, rating_max: float = 
 
 def clean_ingredients(df: pd.DataFrame) -> pd.DataFrame:
     df = _drop_exact_duplicates(df, 'ingredients')
-    df = _dedupe_ids(df, 'ingredient_id', 'ingredients')
+    df = _resolve_dimension_conflicts(df, 'ingredient_id', 'ingredients')
 
     df = df.copy()
     df['last_updated'] = pd.to_datetime(df['last_updated'], errors='coerce')
