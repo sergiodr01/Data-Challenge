@@ -19,6 +19,7 @@ def _resolve(path: str) -> Path:
     return resolved if resolved.is_absolute() else PROJECT_ROOT / resolved
 
 
+
 def extract_all(config_path: str = "config/pipeline_config.yaml") -> dict:
     """
     Extract all data from CSV files configured in pipeline_config.yaml.
@@ -43,21 +44,52 @@ def extract_all(config_path: str = "config/pipeline_config.yaml") -> dict:
         with open(config_file, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
 
-        paths = config['paths']
+        try:
+            paths = config['paths']
+        except KeyError as e:
+            raise KeyError("Missing paths section in configuration") from e
+
         logger.info(f"Configuration loaded from {config_file}")
 
-        # Extract all datasets
-        data = {
-            'products': pd.read_csv(_resolve(paths['products_csv']), encoding='utf-8'),
-            'sales': pd.read_csv(_resolve(paths['sales_csv']), encoding='utf-8'),
-            'feedback': pd.read_csv(_resolve(paths['feedback_csv']), encoding='utf-8'),
-            'ingredients': pd.read_csv(_resolve(paths['ingredient_costs_csv']), encoding='utf-8')
+        # Extract all datasets, one at a time so a failure names its dataset
+        # and the config key/path that caused it.
+        dataset_keys = {
+            'products': 'products_csv',
+            'sales': 'sales_csv',
+            'feedback': 'feedback_csv',
+            'ingredients': 'ingredient_costs_csv',
         }
 
-        logger.info(f"Extracted {len(data['products'])} products")
-        logger.info(f"Extracted {len(data['sales'])} sales transactions")
-        logger.info(f"Extracted {len(data['feedback'])} feedback records")
-        logger.info(f"Extracted {len(data['ingredients'])} ingredients")
+        data = {}
+        for dataset_name, config_key in dataset_keys.items():
+            try:
+                csv_path = paths[config_key]
+            except KeyError as e:
+                raise KeyError(
+                    f"Missing '{config_key}' under 'paths' in configuration "
+                    f"(needed to load the '{dataset_name}' dataset)"
+                ) from e
+
+            resolved_path = _resolve(csv_path)
+            try:
+                data[dataset_name] = pd.read_csv(resolved_path, encoding='utf-8')
+            except FileNotFoundError as e:
+                raise FileNotFoundError(
+                    f"Could not load '{dataset_name}' dataset: file not found at "
+                    f"'{resolved_path}' (from config key '{config_key}')"
+                ) from e
+            except pd.errors.EmptyDataError as e:
+                raise pd.errors.EmptyDataError(
+                    f"Could not load '{dataset_name}' dataset: '{resolved_path}' has no "
+                    f"content at all, not even a header row (from config key '{config_key}')"
+                ) from e
+            except pd.errors.ParserError as e:
+                raise pd.errors.ParserError(
+                    f"Could not load '{dataset_name}' dataset: '{resolved_path}' is not "
+                    f"valid CSV (from config key '{config_key}'): {e}"
+                ) from e
+
+            logger.info(f"Extracted {len(data[dataset_name])} {dataset_name} rows")
 
         return data
 

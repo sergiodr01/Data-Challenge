@@ -12,6 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import yaml
 
 from . import extract, load, transform, validate
@@ -69,6 +70,7 @@ def run_ingestion(config_path: str = "config/pipeline_config.yaml") -> tuple[dic
     raw_data = extract.extract_all(config_path)
 
     logger.info("Stage 2/5: validate (pre-transform)")
+    validate.validate_structure(raw_data)
     pre_report = validate.validate_all(raw_data, thresholds=thresholds)
     pre_total = sum(len(issues) for issues in pre_report.values())
 
@@ -76,6 +78,7 @@ def run_ingestion(config_path: str = "config/pipeline_config.yaml") -> tuple[dic
     cleaned_data = transform.transform_all(raw_data, thresholds=thresholds)
 
     logger.info("Stage 4/5: validate (post-transform gate)")
+    validate.validate_structure(cleaned_data)
     post_report = validate.validate_all(cleaned_data, thresholds=thresholds)
     post_total = sum(len(issues) for issues in post_report.values())
 
@@ -110,7 +113,27 @@ def run_pipeline(config_path: str = "config/pipeline_config.yaml") -> dict[str, 
     return post_report
 
 
+#: Exceptions that mean "your data or config is broken", not "there's a bug
+#: in this code". For these, a short logged message is more useful at the
+#: command line than a full Python traceback.
+EXPECTED_FAILURES = (
+    validate.SchemaValidationError,
+    FileNotFoundError,
+    KeyError,
+    pd.errors.EmptyDataError,
+    pd.errors.ParserError,
+)
+
+
 if __name__ == "__main__":
     _bootstrap_config = _load_config("config/pipeline_config.yaml")
     configure_logging(_bootstrap_config)
-    run_pipeline()
+    try:
+        run_pipeline()
+    except EXPECTED_FAILURES as e:
+        # extract.py and validate.py already log the specific cause with
+        # full context (which dataset, which file, which column). This is
+        # just the final, short "stop" message for the terminal - the
+        # detail is above it, not hidden in a traceback.
+        logger.error(f"Pipeline stopped: {e}")
+        raise SystemExit(1) from e
