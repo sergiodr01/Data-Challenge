@@ -2,8 +2,21 @@
 carrying one instance of the data quality issues extract/validate/transform
 are meant to catch and fix."""
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
+import yaml
+
+SCHEMA_PATH = Path(__file__).resolve().parent.parent / 'config' / 'schema.yaml'
+
+
+@pytest.fixture
+def schema() -> dict:
+    """Loads the real config/schema.yaml, so tests exercise the actual data
+    contract instead of a copy that could silently drift out of sync."""
+    with open(SCHEMA_PATH, encoding='utf-8') as f:
+        return yaml.safe_load(f)
 
 
 @pytest.fixture

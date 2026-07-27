@@ -1,0 +1,130 @@
+# Data contract: every column of every dataset, declared explicitly.
+#
+# Fields per column (all optional except the column existing at all):
+#   dtype:          'string' | 'numeric' | 'date' - the fundamental type the
+#                   column must hold. Enforced as a hard-fail structural
+#                   check (validate.validate_structure), separate from data
+#                   quality checks - a column that silently became numeric
+#                   (e.g. an id column pandas inferred as int/float because
+#                   every value happened to look like a number) is a schema
+#                   break, not a dirty value to clean.
+#   required:       true if the column must be present (validate_structure)
+#                   and must not be null (validate_all quality check).
+#   allowed_values: closed vocabulary for a categorical column. Checked as a
+#                   soft quality issue pre/post cleaning (validate_all);
+#                   transform.py uses these same lists to normalize values
+#                   (e.g. matching 'emea'/'EMEA'/' Emea ' to the canonical
+#                   'EMEA').
+#   min:            numeric floor. Checked as a soft quality issue; values
+#                   below it are set to NaN in transform.py rather than
+#                   guessed (same treatment as products.num_ingredients).
+#   references:     "table.column" - a same-dataset foreign key by value
+#                   (not necessarily a literal ID) that must exist in the
+#                   referenced column. Checked as a soft quality issue.
+
+products:
+  product_id:
+    dtype: string
+    required: true
+  product_name:
+    dtype: string
+    required: true
+  category:
+    dtype: string
+    required: true
+  subcategory:
+    dtype: string
+  launch_date:
+    dtype: date
+  status:
+    dtype: string
+    allowed_values: [Active, Discontinued]
+  num_ingredients:
+    dtype: numeric
+    required: true
+    min: 0
+  primary_ingredient:
+    dtype: string
+    references: ingredients.ingredient_name
+  region_developed:
+    dtype: string
+    allowed_values: [EMEA, APAC, LATAM, "North America"]
+
+sales:
+  transaction_id:
+    dtype: string
+    required: true
+  product_id:
+    dtype: string
+    required: true
+    references: products.product_id
+  customer_id:
+    dtype: string
+    required: true
+  transaction_date:
+    dtype: date
+  quantity_kg:
+    dtype: numeric
+    min: 0
+  unit_price_usd:
+    dtype: numeric
+    min: 0
+  total_amount_usd:
+    dtype: numeric
+    required: true
+    min: 0
+  region:
+    dtype: string
+    allowed_values: [EMEA, APAC, LATAM, "North America"]
+  sales_channel:
+    dtype: string
+    allowed_values: [Direct, Distributor]
+
+feedback:
+  feedback_id:
+    dtype: string
+    required: true
+  product_id:
+    dtype: string
+    required: true
+    references: products.product_id
+  customer_id:
+    dtype: string
+    required: true
+  feedback_date:
+    dtype: date
+  quality_rating:
+    dtype: numeric
+    required: true
+  performance_rating:
+    dtype: numeric
+  value_rating:
+    dtype: numeric
+  overall_satisfaction:
+    dtype: numeric
+    required: true
+  would_reorder:
+    dtype: string
+    # 'Yes'/'No' MUST be quoted - unquoted, YAML 1.1 parses them as booleans
+    # (True/False) instead of strings, silently breaking this check.
+    allowed_values: ["Yes", "No", "Maybe"]
+  comments:
+    dtype: string
+
+ingredients:
+  ingredient_id:
+    dtype: string
+    required: true
+  ingredient_name:
+    dtype: string
+    required: true
+  cost_per_kg_usd:
+    dtype: numeric
+    required: true
+    min: 0
+  supplier:
+    dtype: string
+  last_updated:
+    dtype: date
+  category:
+    dtype: string

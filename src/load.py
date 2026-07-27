@@ -22,57 +22,32 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-metadata = MetaData()
+# Maps config/schema.yaml's `dtype` values to SQLAlchemy column types, so the
+# column type is declared once (in schema.yaml) instead of twice - previously
+# this module hardcoded its own String/Float/Date per column, independently
+# of schema.yaml, with no way to notice if the two ever disagreed.
+DTYPE_TO_SQLA = {'string': String, 'numeric': Float, 'date': Date}
 
-products_table = Table(
-    'products', metadata,
-    Column('product_id', String, primary_key=True),
-    Column('product_name', String, nullable=False),
-    Column('category', String),
-    Column('subcategory', String),
-    Column('launch_date', Date),
-    Column('status', String),
-    Column('num_ingredients', Float),
-    Column('primary_ingredient', String),
-    Column('region_developed', String),
-)
-
-ingredients_table = Table(
-    'ingredients', metadata,
-    Column('ingredient_id', String, primary_key=True),
-    Column('ingredient_name', String, nullable=False),
-    Column('cost_per_kg_usd', Float),
-    Column('supplier', String),
-    Column('last_updated', Date),
-    Column('category', String),
-)
-
-sales_table = Table(
-    'sales', metadata,
-    Column('transaction_id', String, primary_key=True),
-    Column('product_id', String, ForeignKey('products.product_id')),
-    Column('customer_id', String),
-    Column('transaction_date', Date),
-    Column('quantity_kg', Float),
-    Column('unit_price_usd', Float),
-    Column('total_amount_usd', Float),
-    Column('region', String),
-    Column('sales_channel', String),
-)
-
-feedback_table = Table(
-    'feedback', metadata,
-    Column('feedback_id', String, primary_key=True),
-    Column('product_id', String, ForeignKey('products.product_id')),
-    Column('customer_id', String),
-    Column('feedback_date', Date),
-    Column('quality_rating', Float),
-    Column('performance_rating', Float),
-    Column('value_rating', Float),
-    Column('overall_satisfaction', Float),
-    Column('would_reorder', String),
-    Column('comments', String),
-)
+# What schema.yaml deliberately does NOT capture: these are database
+# structure decisions, not data-quality contract terms, and don't map
+# cleanly from schema.yaml's `required` (e.g. feedback.quality_rating is
+# `required: true` in the data-quality sense - we want it flagged when
+# missing - yet 1 residual null is known and allowed through by design;
+# nullable=False here would reject that row and break the load).
+PRIMARY_KEYS = {
+    'products': 'product_id',
+    'ingredients': 'ingredient_id',
+    'sales': 'transaction_id',
+    'feedback': 'feedback_id',
+}
+FOREIGN_KEYS = {
+    'sales': {'product_id': 'products.product_id'},
+    'feedback': {'product_id': 'products.product_id'},
+}
+NOT_NULL_COLUMNS = {
+    'products': ['product_name'],
+    'ingredients': ['ingredient_name'],
+}
 
 # Parents before children: sales/feedback reference products, and while
 # SQLite doesn't enforce FKs by default (needed since a few rows reference
@@ -81,24 +56,56 @@ feedback_table = Table(
 LOAD_ORDER = ['products', 'ingredients', 'sales', 'feedback']
 
 
+def _build_metadata(schema: dict) -> tuple[MetaData, dict[str, Table]]:
+    """
+    Build the SQLAlchemy schema from config/schema.yaml's column types, with
+    primary keys / foreign keys / NOT NULL constraints layered on top from
+    the table-specific dicts above (deliberately not derived from
+    schema.yaml - see the comment on those dicts for why).
+    """
+    metadata = MetaData()
+    tables = {}
+    for name in LOAD_ORDER:
+        columns = []
+        for col, spec in schema[name].items():
+            args: list = [col, DTYPE_TO_SQLA[spec['dtype']]]
+            fk_target = FOREIGN_KEYS.get(name, {}).get(col)
+            if fk_target:
+                args.append(ForeignKey(fk_target))
+            kwargs = {}
+            if col == PRIMARY_KEYS.get(name):
+                kwargs['primary_key'] = True
+            if col in NOT_NULL_COLUMNS.get(name, []):
+                kwargs['nullable'] = False
+            columns.append(Column(*args, **kwargs))
+        tables[name] = Table(name, metadata, *columns)
+    return metadata, tables
+
+
 def _resolve(path: str) -> Path:
     resolved = Path(path)
     return resolved if resolved.is_absolute() else PROJECT_ROOT / resolved
 
 
-def load_all(cleaned_data: dict[str, pd.DataFrame], database_path: str = "symrise_data.db") -> Path:
+def load_all(
+    cleaned_data: dict[str, pd.DataFrame], schema: dict, database_path: str = "symrise_data.db"
+) -> Path:
     """
     (Re)create the schema and load cleaned DataFrames into SQLite.
 
     Args:
         cleaned_data: Dict with keys 'products', 'sales', 'feedback',
             'ingredients' holding cleaned DataFrames from transform_all().
+        schema: The data contract loaded from config/schema.yaml - supplies
+            each column's type (see DTYPE_TO_SQLA above).
         database_path: Path to the SQLite database file, relative to the
             project root or absolute.
 
     Returns:
         The resolved path to the database file.
     """
+    metadata, _ = _build_metadata(schema)
+
     db_path = _resolve(database_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(f"sqlite:///{db_path}")

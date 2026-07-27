@@ -54,7 +54,9 @@ def configure_logging(config: dict[str, Any]) -> None:
     )
 
 
-def run_ingestion(config_path: str = "config/pipeline_config.yaml") -> tuple[dict[str, Any], dict[str, list[str]]]:
+def run_ingestion(
+    config_path: str = "config/pipeline_config.yaml", schema_path: str = "config/schema.yaml"
+) -> tuple[dict[str, Any], dict[str, list[str]]]:
     """
     Run the extract -> validate -> transform -> validate stages.
 
@@ -65,21 +67,22 @@ def run_ingestion(config_path: str = "config/pipeline_config.yaml") -> tuple[dic
     """
     config = _load_config(config_path)
     thresholds = config.get('quality_thresholds', {})
+    schema = _load_config(schema_path)
 
     logger.info("Stage 1/5: extract")
     raw_data = extract.extract_all(config_path)
 
     logger.info("Stage 2/5: validate (pre-transform)")
-    validate.validate_structure(raw_data)
-    pre_report = validate.validate_all(raw_data, thresholds=thresholds)
+    validate.validate_structure(raw_data, schema)
+    pre_report = validate.validate_all(raw_data, schema, thresholds=thresholds)
     pre_total = sum(len(issues) for issues in pre_report.values())
 
     logger.info("Stage 3/5: transform")
-    cleaned_data = transform.transform_all(raw_data, thresholds=thresholds)
+    cleaned_data = transform.transform_all(raw_data, thresholds=thresholds, schema=schema)
 
     logger.info("Stage 4/5: validate (post-transform gate)")
-    validate.validate_structure(cleaned_data)
-    post_report = validate.validate_all(cleaned_data, thresholds=thresholds)
+    validate.validate_structure(cleaned_data, schema)
+    post_report = validate.validate_all(cleaned_data, schema, thresholds=thresholds)
     post_total = sum(len(issues) for issues in post_report.values())
 
     logger.info(f"Quality gate: {pre_total} issue(s) before cleaning, {post_total} remain after cleaning")
@@ -92,7 +95,9 @@ def run_ingestion(config_path: str = "config/pipeline_config.yaml") -> tuple[dic
     return cleaned_data, post_report
 
 
-def run_pipeline(config_path: str = "config/pipeline_config.yaml") -> dict[str, list[str]]:
+def run_pipeline(
+    config_path: str = "config/pipeline_config.yaml", schema_path: str = "config/schema.yaml"
+) -> dict[str, list[str]]:
     """
     Run the full pipeline end-to-end: extract -> validate -> transform ->
     validate -> load, persisting the cleaned data to the SQLite database
@@ -102,12 +107,13 @@ def run_pipeline(config_path: str = "config/pipeline_config.yaml") -> dict[str, 
         The post-transform quality report (see run_ingestion()).
     """
     config = _load_config(config_path)
+    schema = _load_config(schema_path)
 
-    cleaned_data, post_report = run_ingestion(config_path)
+    cleaned_data, post_report = run_ingestion(config_path, schema_path)
 
     logger.info("Stage 5/5: load")
     database_path = config['paths']['database']
-    db_path = load.load_all(cleaned_data, database_path=database_path)
+    db_path = load.load_all(cleaned_data, schema, database_path=database_path)
     logger.info(f"Pipeline complete. Database written to {db_path}")
 
     return post_report
