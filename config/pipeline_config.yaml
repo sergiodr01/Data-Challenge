@@ -7,7 +7,6 @@ paths:
   output_dir: output
 
 logging:
-  level: DEBUG
   log_file: output/pipeline.log
 
 quality_thresholds:

@@ -52,7 +52,6 @@ def _write_config(tmp_path: Path, paths: dict[str, str]) -> Path:
     config = {
         'paths': paths,
         'quality_thresholds': {'rating_min': 0, 'rating_max': 5},
-        'logging': {'level': 'WARNING'},  # keep test output quiet
     }
     config_path = tmp_path / 'pipeline_config.yaml'
     with open(config_path, 'w', encoding='utf-8') as f:

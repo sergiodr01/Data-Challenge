@@ -8,11 +8,34 @@ the reasoning behind each decision. Full run-by-run detail is in
 
 ## Methodology
 
-The pipeline validates data **twice**: once on the raw CSVs (`extract.py`
-output) and again after cleaning (`transform.py` output). The first pass
-tells us what's wrong with the source data; the second is a quality gate
-that confirms cleaning actually worked and surfaces whatever couldn't be
-fixed. Two ground rules drove every cleaning decision:
+Validation runs in **two tiers**, on purpose, not one:
+
+1. **Structure** (`validate.validate_structure`, hard-fail). Before any
+   cleaning is attempted, every dataset is checked against the data contract
+   in [`config/schema.yaml`](../config/schema.yaml): are all required
+   columns present, does each column hold the fundamental type it's
+   supposed to (text vs. number vs. date), and does the dataset have at
+   least one row? A violation here raises `SchemaValidationError` and stops
+   the pipeline immediately — there's no reasonable way to clean or
+   aggregate around a column that doesn't exist, or an id column that
+   silently became a number because every value in the file happened to
+   look numeric (a classic pandas trap: leading zeros vanish, and a single
+   missing value forces the whole column to floats). This is deliberately
+   *not* the same severity as the issues below: a broken structure means the
+   pipeline can't proceed sensibly at all, whereas a dirty value can still
+   be cleaned or safely excluded from aggregation.
+2. **Quality** (`validate.validate_all`, soft-warn). Nulls, duplicates,
+   out-of-range numeric values, values outside a closed vocabulary (e.g.
+   region codes), and orphaned foreign keys (by id or by name) are logged
+   as warnings, and the pipeline keeps going. `transform.py` cleans what it
+   can; whatever survives cleaning is reported below as a residual issue
+   rather than silently loaded.
+
+Both tiers run **twice**: once on the raw CSVs (`extract.py` output) and
+again after cleaning (`transform.py` output). The first pass tells us what's
+wrong with the source data; the second confirms cleaning actually worked.
+
+Two ground rules drove every cleaning decision:
 
 1. **Never drop a row just because one field is unrecoverable.** A sale or a
    piece of feedback is worth more than a spotless table. Unrecoverable
@@ -22,19 +45,40 @@ fixed. Two ground rules drove every cleaning decision:
    columns in the same row (e.g. recomputing a missing `total_amount_usd`
    from `quantity_kg x unit_price_usd`), it's left null rather than guessed.
 
+### `config/schema.yaml`: one contract, three consumers
+
+Every column's expected type, whether it's required, its closed vocabulary
+(if any), and its numeric floor (if any) is declared once, in
+`config/schema.yaml` — not duplicated across files. `validate.py` reads it
+for both tiers above; `transform.py` reads the same `allowed_values` lists
+to normalize `region`/`region_developed` against; `load.py` reads the same
+`dtype` values to build the SQLite column types (`String`/`Float`/`Date`),
+so the database schema can never silently disagree with the validation
+contract. Primary keys, foreign keys, and `NOT NULL` constraints stay
+declared explicitly in `load.py` instead, since those are database-structure
+decisions, not data-quality terms — notably, `required: true` in the
+contract is *not* the same as `NOT NULL` in the database: `feedback.
+quality_rating` is required in the quality-gate sense (missing values are
+flagged) but has one known, allowed residual null, so forcing `NOT NULL`
+on it would break the load.
+
 ## Summary
 
 | Dataset | Raw rows | Rows after cleaning | Issues found (pre-transform) | Issues remaining (post-transform) |
 |---|---|---|---|---|
-| products | 41 | 40 | 4 | 1 |
+| products | 41 | 40 | 5 | 1 |
 | sales | 90 | 90 | 4 | 1 |
-| feedback | 55 | 55 | 5 | 2 |
+| feedback | 55 | 55 | 6 | 2 |
 | ingredients | 42 | 41 | 1 | 0 |
-| **Total** | | | **14** | **4** |
+| **Total** | | | **16** | **4** |
 
 No sale or feedback row was dropped. `products` lost exactly one row (an
 exact duplicate, see below); `ingredients` lost exactly one row (a
-same-name-different-ID conflict, see below).
+same-name-different-ID conflict, see below). The 2 additional pre-transform
+issues versus earlier runs of this pipeline (`products`: 4→5, `feedback`:
+5→6) are casing inconsistencies (`status`, `would_reorder`) now caught by
+the closed-vocabulary check described below — both are fully resolved by
+`transform.py`'s normalization, so they add 0 to the residual total.
 
 ## Issues found and how they were resolved
 
@@ -101,3 +145,21 @@ Every business question in `output/business_answers.md` either naturally
 excludes these rows (aggregations skip `NULL`) or explicitly surfaces them
 (Q1's `'Unknown/Unmatched Product'` bucket) rather than silently dropping
 data.
+
+## Additional guardrails (0 issues today, actively enforced)
+
+These checks run on every pipeline execution and currently find nothing
+wrong — they exist so that a *future* data quality regression is caught
+immediately instead of silently corrupting a business question:
+
+| Guardrail | What it protects | Currently |
+|---|---|---|
+| Closed vocabulary on `region_developed` (products) and `region` (sales) | Region-based aggregations (Q2's satisfaction-by-region) don't silently fragment into duplicate categories from a casing variant | 0 issues |
+| Closed vocabulary on `sales_channel` | Same, for channel-based breakdowns | 0 issues |
+| `quantity_kg`, `unit_price_usd`, `total_amount_usd` (sales) and `cost_per_kg_usd` (ingredients) must be `>= 0` | A negative price/quantity/cost can't silently deflate revenue or margin totals | 0 issues |
+| `products.primary_ingredient` must exist in `ingredients.ingredient_name` | Q5's profit-margin join is by **name**, not id (`products.csv` has no `ingredient_id` column) — a typo or missing ingredient here would silently return a null cost instead of an error | 0 issues |
+| Structural type check (`validate_structure`) | An id column that pandas silently read as a number, or a numeric column that arrived as text, is caught before transform/load ever run | 0 issues |
+
+If any of these ever fires, the fix follows the same two ground rules as
+everything above: never drop the row, never fabricate the "correct" value —
+clip/normalize what's derivable, leave the rest `NULL` and report it here.

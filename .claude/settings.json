@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -c '^```' README.md)",
+      "Bash(echo \"README fences: $\\(grep -c '^```' README.md\\)\")",
+      "Bash(grep -c '^```' output/data_quality_report.md)",
+      "Bash(echo \"report fences: $\\(grep -c '^```' output/data_quality_report.md\\)\")",
+      "Bash(.venv/Scripts/python.exe -c \"import jupyter\")",
+      "Bash(.venv/Scripts/python.exe -c \"import nbformat, nbconvert; print\\('ok'\\)\")",
+      "Bash(.venv/Scripts/python.exe -m pip install -q jupyter)",
+      "Bash(.venv/Scripts/python.exe -m pip install -q nbformat nbclient ipykernel)",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(awk '{print $1, $0}')"
+    ]
+  }
+}

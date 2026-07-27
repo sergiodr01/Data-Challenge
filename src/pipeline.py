@@ -34,10 +34,11 @@ def _load_config(config_path: str) -> dict[str, Any]:
 
 
 def configure_logging(config: dict[str, Any]) -> None:
-    """Set up logging from config['logging'] (level + log_file) instead of
-    hardcoding them, with both a console and a file handler."""
+    """Set up logging from config['logging']['log_file'] instead of
+    hardcoding it, with both a console and a file handler. The level is
+    fixed at INFO (matching src/visualize.py) - nothing in this codebase
+    logs at DEBUG, so a configurable level would have no visible effect."""
     log_config = config.get('logging', {})
-    level = getattr(logging, str(log_config.get('level', 'INFO')).upper(), logging.INFO)
     log_file = log_config.get('log_file')
 
     handlers: list[logging.Handler] = [logging.StreamHandler()]
@@ -47,7 +48,7 @@ def configure_logging(config: dict[str, Any]) -> None:
         handlers.append(logging.FileHandler(log_path, mode='a', encoding='utf-8'))
 
     logging.basicConfig(
-        level=level,
+        level=logging.INFO,
         format='%(asctime)s %(levelname)s:%(name)s:%(message)s',
         handlers=handlers,
         force=True,
